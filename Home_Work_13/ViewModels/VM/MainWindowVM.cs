@@ -145,24 +145,24 @@ namespace Home_Work_13.ViewModels.VM
                 {
                     bool flag = false;
 
-                    if (dialogAddClientService.OpenAddClientDialog() == true)
-                    {
-                        for (int i = 0; i < ClientsList.Count; i++)
+                        if (dialogAddClientService.OpenAddClientDialog() == true)
                         {
-                            if (ClientsList[i].Equals(dialogAddClientService.client))
+                            for (int i = 0; i < ClientsList.Count; i++)
                             {
-                                MessageBox.Show("Такой клиент уже существует!");
-                                flag = true;
-                                break;
+                                if (ClientsList[i].Equals(dialogAddClientService.client))
+                                {
+                                    MessageBox.Show("Такой клиент уже существует!");
+                                    flag = true;
+                                    break;
+                                }
+                            }
+
+                            if (!flag)
+                            {
+                                ClientsList.Add(dialogAddClientService.client);
+                                MessageBox.Show("Новый клиент успешно добавлен!");
                             }
                         }
-
-                        if (!flag)
-                        {
-                            ClientsList.Add(dialogAddClientService.client);
-                            MessageBox.Show("Новый клиент успешно добавлен!");
-                        }
-                    }
                 }));
             }
         }

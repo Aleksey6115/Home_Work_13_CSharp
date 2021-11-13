@@ -24,7 +24,11 @@ namespace Home_Work_13.View.DialogWindows
 
         private void Button_Click(object sender, RoutedEventArgs e)
         {
-            this.DialogResult = true;
+            if (comboStatusClient.SelectedItem != null && comboAgeClient.SelectedItem != null &&
+                    txtNameClient.Text.Length > 0 && txtLastNameClient.Text.Length > 0)
+                this.DialogResult = true;
+
+            else MessageBox.Show("Не все поля были заполнены!!!");
         }
     }
 }
