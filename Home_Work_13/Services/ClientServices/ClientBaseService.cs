@@ -7,7 +7,10 @@ using Home_Work_13.Models.Client;
 
 namespace Home_Work_13.Services
 {
-    internal class ServiceClient
+    /// <summary>
+    /// Дополнительная работа с базой клиентов
+    /// </summary>
+    internal class ClientBaseService
     {
         public ObservableCollection<ClientAbstract> GeneratorBase()
         {

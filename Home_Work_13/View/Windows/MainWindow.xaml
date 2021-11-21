@@ -1,13 +1,23 @@
 ﻿<Window x:Class="Home_Work_13.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:i="clr-namespace:System.Windows.Interactivity;assembly=System.Windows.Interactivity"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:Home_Work_13" xmlns:vm="clr-namespace:Home_Work_13.ViewModels.VM" 
+        xmlns:local="clr-namespace:Home_Work_13" 
+        xmlns:vm="clr-namespace:Home_Work_13.ViewModels.VM" 
         d:DataContext="{d:DesignInstance Type=vm:MainWindowVM}"
         mc:Ignorable="d"
         Title="MainWindow" Height="450" Width="1000" MinHeight="450" MinWidth="1000">
+
+    <i:Interaction.Triggers>
+        <i:EventTrigger EventName="Loaded">
+            <i:InvokeCommandAction Command="{Binding SelectUserCommand}"/>
+        </i:EventTrigger>
+    </i:Interaction.Triggers>
+    
     <Grid>
+
         <Grid.RowDefinitions>
             <RowDefinition Height="20"/>
             <RowDefinition Height="50*"/>
@@ -32,6 +42,8 @@
                           CommandParameter="{Binding SelectedClient}"/>
             </MenuItem>
 
+            <MenuItem Header="Сменить пользователя" Command="{Binding SelectUserCommand}"/>
+            <MenuItem Header="История" Command="{Binding OpenHistoryCommand}"/>
             <MenuItem Header="Помощь" Command="{Binding OpenHelpCommand}"/>
 
         </Menu>
@@ -54,17 +66,20 @@
                 <DataGridTextColumn 
                     Header="Имя"
                     Width="20*"
-                    Binding="{Binding FirstName}"/>
+                    Binding="{Binding FirstName}"
+                    IsReadOnly="True"/>
 
                 <DataGridTextColumn
                     Header="Фамилия"
                     Width="20*"
-                    Binding="{Binding LastName}"/>
+                    Binding="{Binding LastName}"
+                    IsReadOnly="True"/>
 
                 <DataGridTextColumn
                     Header="Возраст"
                     Width="20*"
-                    Binding="{Binding Age}"/>
+                    Binding="{Binding Age}"
+                    IsReadOnly="True"/>
 
                 <DataGridTextColumn 
                     Header="Депозит"

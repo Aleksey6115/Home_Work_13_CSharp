@@ -6,13 +6,21 @@ using System.Collections.ObjectModel;
 using Home_Work_13.Commands;
 using Home_Work_13.Models.Client;
 using System.Windows;
+using Home_Work_13.Services.ClientAccountService;
+using Home_Work_13.Services.ClientDepositService;
+using Home_Work_13.Models.Data;
+using Home_Work_13.Models.Users;
+using Home_Work_13.Services.DialogServices;
+using Home_Work_13.Models.DataHistory;
 
 namespace Home_Work_13.ViewModels.VM
 {
     class MainWindowVM : ViewModelBase
     {
         #region Поля
+        private DataList dataList = new DataList(); // Списки БД
         private ClientAbstract selectedClient; // Выбранный клиент
+        private IUsers currentUser; // Текущий пользователь
         private decimal txtReplenishDeposit; // Сумма для пополнения депозита
         private decimal txtTransferToAccount; // Сумма для перевода на счёт
         private decimal txtReplenishAccount; // Сумма для пополнения счёта
@@ -22,12 +30,16 @@ namespace Home_Work_13.ViewModels.VM
         #endregion
 
         #region Сервисы
-        private Services.ServiceClient serviceClient = new Services.ServiceClient(); // Работа с данными клиента
+        private Services.ClientBaseService serviceClient = new Services.ClientBaseService(); // Работа с данными клиента
         private Services.DialogAddClientService dialogAddClientService = new Services.DialogAddClientService(); // Добавление клиента
         private Services.DialogTransferClientService dialogTransfer = new Services.DialogTransferClientService(); // Перевод клиенту
         private Services.FileService fileService = new Services.FileService(); // Работа с файлами
         private Services.DialogFileService dialogFileService = new Services.DialogFileService(); // Окна для работы с файлами
         private Services.DialogHelpService dialogHelpService = new Services.DialogHelpService(); // Окно с короткой инструкцией
+        private AccountService accountService = new AccountService(); // Работа со счётом клиента
+        private DepositService depositService = new DepositService(); // Работа с депозитным счётом клиента
+        private DialogAuthorizationService dialogAuthorizationService = new DialogAuthorizationService(); // Окно авторизации
+        private DialogHistoryService dialogHistoryService = new DialogHistoryService(); // Окно с историей
         #endregion
 
         #region Свойства
@@ -44,6 +56,11 @@ namespace Home_Work_13.ViewModels.VM
         /// Список клиентов
         /// </summary>
         public ObservableCollection<ClientAbstract> ClientsList { get; set; }
+
+        /// <summary>
+        /// Список истории
+        /// </summary>
+        public ObservableCollection<History> HistoryList { get; set; }
 
         /// <summary>
         /// Сумма для пополнения депозита
@@ -104,7 +121,64 @@ namespace Home_Work_13.ViewModels.VM
         public MainWindowVM()
         {
             ClientsList = new ObservableCollection<ClientAbstract>();
+            HistoryList = new ObservableCollection<History>();
+            accountService.AccountAddHistory += AccountAddLog;
+            depositService.DepositAddHistory += AccountAddLog;
         }
+        #endregion
+
+        #region Методы
+
+        /// <summary>
+        /// Метод обнуляет значения TXT
+        /// </summary>
+        private void ResetValues()
+        {
+            TxtReplenishAccount = 0;
+            TxtTransferToDeposit = 0;
+            TxtTransferToClient = 0;
+            TxtWithdrawAccount = 0;
+            TxtTransferToAccount = 0;
+            TxtReplenishDeposit = 0;
+        }
+
+        /// <summary>
+        /// Присвоить значения листам в DataList
+        /// </summary>
+        private void AssignValuesData(bool flag)
+        {
+            if (flag == true)
+            {
+                dataList.clientsList = ClientsList;
+                dataList.historyList = HistoryList;
+            }
+
+            else
+            {
+                ClientsList.Clear();
+                foreach (var c in dataList.clientsList)
+                    ClientsList.Add(c);
+
+                HistoryList.Clear();
+                //foreach (var h in dataList.historyList)
+                //    HistoryList.Add(h);
+                HistoryList = dataList.historyList;
+            }
+        }
+
+        /// <summary>
+        /// Обработчик события AccountAddHistory и DepositAddHistory
+        /// </summary>
+        /// <param name="user"></param>
+        /// <param name="oper"></param>
+        /// <param name="sum"></param>
+        /// <param name="client"></param>
+        private void AccountAddLog(IUsers user, string oper, decimal sum, ClientAbstract client)
+        {
+            History log = new History(user, oper, sum, client);
+            HistoryList.Add(log);
+        }
+
         #endregion
 
         #region Комманды - общие комманды
@@ -114,6 +188,8 @@ namespace Home_Work_13.ViewModels.VM
         private RelayCommand openFileCommand; // Комманда открыть файл
         private RelayCommand saveFileCommand; // Комманда сохранить файл
         private RelayCommand openHelpCommand; // Команда открывает окно помощи
+        private RelayCommand selectUserCommand; // Комманда открывает окно авторизации
+        private RelayCommand openHistoryCommand; // Комманда открывает окно с историей
 
 
         /// <summary>
@@ -179,7 +255,7 @@ namespace Home_Work_13.ViewModels.VM
                     ClientAbstract client = obj as ClientAbstract;
                     ClientsList.Remove(client);
                 },
-                obj => ClientsList.Count > 0));
+                obj => ClientsList.Count > 0 && SelectedClient != null));
             }
         }
 
@@ -196,11 +272,8 @@ namespace Home_Work_13.ViewModels.VM
                 {
                     if (dialogFileService.OpenFileDialog() == true)
                         {
-                            ClientsList.Clear();
-                            var clients = fileService.OpenFile(dialogFileService.FilePath);
-
-                            foreach (var c in clients)
-                                ClientsList.Add(c);
+                            dataList = fileService.OpenFile(dialogFileService.FilePath);
+                            AssignValuesData(false);
 
                             MessageBox.Show("Файл успешно загружен");
                         }
@@ -226,7 +299,8 @@ namespace Home_Work_13.ViewModels.VM
                     {
                         if (dialogFileService.SaveFileDialog() == true)
                         {
-                            fileService.SaveFile(dialogFileService.FilePath, ClientsList);
+                            AssignValuesData(true);
+                            fileService.SaveFile(dialogFileService.FilePath, dataList);
                             MessageBox.Show("Файл сохранён");
                         }
                     }
@@ -252,6 +326,50 @@ namespace Home_Work_13.ViewModels.VM
                 }));
             }
         }
+
+        /// <summary>
+        /// Комманда открывает окно авторизации
+        /// </summary>
+        public RelayCommand SelectUserCommand
+        {
+            get
+            {
+                return selectUserCommand ?? (selectUserCommand = new RelayCommand(obj =>
+                {
+                    currentUser = null;
+                    while (currentUser == null)
+                    {
+                        try
+                        {
+                            if (dialogAuthorizationService.OpenAuthorizationDialog() == true)
+                            {
+                                currentUser = dialogAuthorizationService.SelectedUser;
+                            }
+                        }
+                        catch
+                        {
+                            MessageBox.Show("Ошибка");
+                        }
+
+                        if (currentUser == null) MessageBox.Show("Нужно выбрать пользователя");
+                    }
+                }));
+            }
+        }
+
+        /// <summary>
+        /// Комманда открывает окно с историей
+        /// </summary>
+        public RelayCommand OpenHistoryCommand
+        {
+            get
+            {
+                return openHistoryCommand ?? (openHistoryCommand = new RelayCommand(obj =>
+                {
+                    dialogHistoryService.OpenHistoryWindow(HistoryList);
+                }));
+            }
+        }
         #endregion
 
         #region Комманды - работа с депозитом
@@ -270,11 +388,8 @@ namespace Home_Work_13.ViewModels.VM
             {
                 return openDepositAccountCommand ?? (openDepositAccountCommand = new RelayCommand(obj =>
                 {
-                    ClientAbstract client = obj as ClientAbstract;
-                    client.DepositAccount = 1;
-                    TxtReplenishDeposit = 0;
-                    TxtTransferToAccount = 0;
-                    client.AccumulatedDeposit = client.DepositRate * client.DepositAccount;
+                    SelectedClient = depositService.OpenDepositAccount(SelectedClient, currentUser);
+                    ResetValues();
                 },
                 obj =>
                 {
@@ -293,11 +408,8 @@ namespace Home_Work_13.ViewModels.VM
             {
                 return closeDepositAccountComand ?? (closeDepositAccountComand = new RelayCommand(obj =>
                 {
-                    ClientAbstract client = obj as ClientAbstract;
-                    client.DepositAccount = 0;
-                    TxtReplenishDeposit = 0;
-                    TxtTransferToAccount = 0;
-                    SelectedClient.AccumulatedDeposit = 0;
+                    SelectedClient = depositService.CloseDepositAccount(SelectedClient, currentUser);
+                    ResetValues();
                 },
                 obj =>
                 {
@@ -316,9 +428,8 @@ namespace Home_Work_13.ViewModels.VM
             {
                 return replenishDepositCommand ?? (replenishDepositCommand = new RelayCommand(obj =>
                 {
-                    SelectedClient.DepositAccount += txtReplenishDeposit;
-                    TxtReplenishDeposit = 0;
-                    SelectedClient.AccumulatedDeposit = SelectedClient.DepositAccount * SelectedClient.DepositRate;
+                    SelectedClient = depositService.ReplenishDeposit(SelectedClient, TxtReplenishDeposit, currentUser);
+                    ResetValues();
                 },
                 obj =>
                 {
@@ -337,10 +448,8 @@ namespace Home_Work_13.ViewModels.VM
             {
                 return transferToAccountCommand ?? (transferToAccountCommand = new RelayCommand(obj =>
                 {
-                    SelectedClient.DepositAccount -= txtTransferToAccount;
-                    SelectedClient.Account += txtTransferToAccount;
-                    TxtTransferToAccount = 0;
-                    SelectedClient.AccumulatedDeposit = SelectedClient.DepositAccount * SelectedClient.DepositRate;
+                    SelectedClient = depositService.TransferToAccount(SelectedClient, TxtTransferToAccount, currentUser);
+                    ResetValues();
                 },
                 obj =>
                 {
@@ -369,12 +478,8 @@ namespace Home_Work_13.ViewModels.VM
             {
                 return openAccountCommand ?? (openAccountCommand = new RelayCommand(obj =>
                 {
-                    ClientAbstract client = obj as ClientAbstract;
-                    client.Account = 1;
-                    TxtReplenishAccount = 0;
-                    TxtTransferToDeposit = 0;
-                    TxtTransferToClient = 0;
-                    TxtWithdrawAccount = 0;
+                    SelectedClient = accountService.OpenAccount(SelectedClient, currentUser);
+                    ResetValues();
                 },
                 obj =>
                 {
@@ -393,12 +498,8 @@ namespace Home_Work_13.ViewModels.VM
             {
                 return closeAccountCommand ?? (closeAccountCommand = new RelayCommand(obj =>
                 {
-                    ClientAbstract client = obj as ClientAbstract;
-                    client.Account = 0;
-                    TxtReplenishAccount = 0;
-                    TxtTransferToDeposit = 0;
-                    TxtTransferToClient = 0;
-                    TxtWithdrawAccount = 0;
+                    SelectedClient = accountService.CloseAccount(SelectedClient, currentUser);
+                    ResetValues();
                 },
                 obj =>
                 {
@@ -417,8 +518,8 @@ namespace Home_Work_13.ViewModels.VM
             {
                 return replenishAccountCommand ?? (replenishAccountCommand = new RelayCommand(obj =>
                 {
-                    SelectedClient.Account += TxtReplenishAccount;
-                    TxtReplenishAccount = 0;
+                    SelectedClient = accountService.ReplenishAccount(SelectedClient, TxtReplenishAccount, currentUser);
+                    ResetValues();
                 },
                 obj =>
                 {
@@ -437,8 +538,8 @@ namespace Home_Work_13.ViewModels.VM
             {
                 return withdrawAccountCommand ?? (withdrawAccountCommand = new RelayCommand(obj =>
                 {
-                    SelectedClient.Account -= TxtWithdrawAccount;
-                    TxtWithdrawAccount = 0;
+                    SelectedClient = accountService.WithdrawAccount(SelectedClient, TxtWithdrawAccount, currentUser);
+                    ResetValues();
                 },
                 obj =>
                 {
@@ -458,10 +559,8 @@ namespace Home_Work_13.ViewModels.VM
             {
                 return transferToDepositCommand ?? (transferToDepositCommand = new RelayCommand(obj =>
                 {
-                    SelectedClient.Account -= TxtTransferToDeposit;
-                    SelectedClient.DepositAccount += TxtTransferToDeposit;
-                    TxtTransferToDeposit = 0;
-                    SelectedClient.AccumulatedDeposit = SelectedClient.DepositAccount * SelectedClient.DepositRate;
+                    SelectedClient = accountService.TransferToDeposit(SelectedClient, TxtTransferToDeposit,currentUser);
+                    ResetValues();
                 },
                 obj =>
                 {
@@ -487,11 +586,11 @@ namespace Home_Work_13.ViewModels.VM
                     {
                         if (ClientsList[i].Equals(dialogTransfer.clientTransfer))
                         {
-                            ClientsList[i].Account += TxtTransferToClient;
-                            SelectedClient.Account -= TxtTransferToClient;
+                            ClientsList[i] = accountService.ReplenishAccount(ClientsList[i], TxtTransferToClient, currentUser);
+                            SelectedClient = accountService.WithdrawAccount(SelectedClient, TxtTransferToClient, currentUser);
                         }
                     }
-                    TxtTransferToClient = 0;
+                    ResetValues();
                 },
                 obj =>
                 {

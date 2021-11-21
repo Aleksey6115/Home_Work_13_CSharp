@@ -6,6 +6,7 @@ using System.IO;
 using Home_Work_13.Models;
 using Newtonsoft.Json;
 using Home_Work_13.Models.Client;
+using Home_Work_13.Models.Data;
 
 namespace Home_Work_13.Services
 {
@@ -28,11 +29,11 @@ namespace Home_Work_13.Services
         /// </summary>
         /// <param name="path"></param>
         /// <returns></returns>
-        public ObservableCollection<ClientAbstract> OpenFile(string path)
+        public DataList OpenFile(string path)
         {
-            ObservableCollection<ClientAbstract> clients = new ObservableCollection<ClientAbstract>();
-            clients = JsonConvert.DeserializeObject<ObservableCollection<ClientAbstract>>(File.ReadAllText(path), settings);
-            return clients;
+            DataList dl = new DataList();
+            dl = JsonConvert.DeserializeObject<DataList>(File.ReadAllText(path), settings);
+            return dl;
         }
 
         /// <summary>
@@ -40,9 +41,9 @@ namespace Home_Work_13.Services
         /// </summary>
         /// <param name="path"></param>
         /// <param name="clients"></param>
-        public void SaveFile(string path, ObservableCollection<ClientAbstract> clients)
+        public void SaveFile(string path, DataList data)
         {
-            File.WriteAllText(path, JsonConvert.SerializeObject(clients, settings));
+            File.WriteAllText(path, JsonConvert.SerializeObject(data, settings));
         }
     }
 }
