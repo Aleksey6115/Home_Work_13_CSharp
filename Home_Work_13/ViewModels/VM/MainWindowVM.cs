@@ -12,6 +12,8 @@ using Home_Work_13.Models.Data;
 using Home_Work_13.Models.Users;
 using Home_Work_13.Services.DialogServices;
 using Home_Work_13.Models.DataHistory;
+using Home_Work_13.Services.FileServices;
+using Home_Work_13.Services;
 
 namespace Home_Work_13.ViewModels.VM
 {
@@ -27,19 +29,20 @@ namespace Home_Work_13.ViewModels.VM
         private decimal txtWithdrawAccount; // Сумма для снятие счёта
         private decimal txtTransferToDeposit; // Сумма перевода со счёта на депозит
         private decimal txtTransferToClient; // Сумма для перевода другому клиенту
+        private string txtCurrentUser; // Статус текущего пользователя
         #endregion
 
         #region Сервисы
-        private Services.ClientBaseService serviceClient = new Services.ClientBaseService(); // Работа с данными клиента
-        private Services.DialogAddClientService dialogAddClientService = new Services.DialogAddClientService(); // Добавление клиента
-        private Services.DialogTransferClientService dialogTransfer = new Services.DialogTransferClientService(); // Перевод клиенту
-        private Services.FileService fileService = new Services.FileService(); // Работа с файлами
-        private Services.DialogFileService dialogFileService = new Services.DialogFileService(); // Окна для работы с файлами
-        private Services.DialogHelpService dialogHelpService = new Services.DialogHelpService(); // Окно с короткой инструкцией
+        private ClientBaseService serviceClient = new ClientBaseService(); // Работа с данными клиента
+        private DialogAddClientService dialogAddClientService = new DialogAddClientService(); // Добавление клиента
+        private DialogTransferClientService dialogTransfer = new DialogTransferClientService(); // Перевод клиенту
+        private DialogFileService dialogFileService = new DialogFileService(); // Окна для работы с файлами
+        private DialogHelpService dialogHelpService = new DialogHelpService(); // Окно с короткой инструкцией
         private AccountService accountService = new AccountService(); // Работа со счётом клиента
         private DepositService depositService = new DepositService(); // Работа с депозитным счётом клиента
         private DialogAuthorizationService dialogAuthorizationService = new DialogAuthorizationService(); // Окно авторизации
         private DialogHistoryService dialogHistoryService = new DialogHistoryService(); // Окно с историей
+        private IFile fileService; // Работа с файлами
         #endregion
 
         #region Свойства
@@ -115,6 +118,15 @@ namespace Home_Work_13.ViewModels.VM
             get => txtTransferToClient;
             set => Set(ref txtTransferToClient, value);
         }
+
+        /// <summary>
+        /// Статус текущего пользователя
+        /// </summary>
+        public string TxtCurrentUser
+        {
+            get => $"Текущий пользователь - {txtCurrentUser}";
+            set => Set(ref txtCurrentUser, value);
+        }
         #endregion
 
         #region Конструктор
@@ -122,8 +134,10 @@ namespace Home_Work_13.ViewModels.VM
         {
             ClientsList = new ObservableCollection<ClientAbstract>();
             HistoryList = new ObservableCollection<History>();
+            fileService = new FileService();
             accountService.AccountAddHistory += AccountAddLog;
             depositService.DepositAddHistory += AccountAddLog;
+            serviceClient.BaseAddHistory += AccountAddLog;
         }
         #endregion
 
@@ -219,26 +233,10 @@ namespace Home_Work_13.ViewModels.VM
             {
                 return addClientCommand ?? (addClientCommand = new RelayCommand(obj =>
                 {
-                    bool flag = false;
-
-                        if (dialogAddClientService.OpenAddClientDialog() == true)
-                        {
-                            for (int i = 0; i < ClientsList.Count; i++)
-                            {
-                                if (ClientsList[i].Equals(dialogAddClientService.client))
-                                {
-                                    MessageBox.Show("Такой клиент уже существует!");
-                                    flag = true;
-                                    break;
-                                }
-                            }
-
-                            if (!flag)
-                            {
-                                ClientsList.Add(dialogAddClientService.client);
-                                MessageBox.Show("Новый клиент успешно добавлен!");
-                            }
-                        }
+                  if (dialogAddClientService.OpenAddClientDialog() == true)
+                     {
+                       ClientsList = serviceClient.AddClient(ClientsList, dialogAddClientService.client, currentUser);
+                     }
                 }));
             }
         }
@@ -253,7 +251,7 @@ namespace Home_Work_13.ViewModels.VM
                 return deleteClientCommand ?? (deleteClientCommand = new RelayCommand(obj =>
                 {
                     ClientAbstract client = obj as ClientAbstract;
-                    ClientsList.Remove(client);
+                    ClientsList = serviceClient.DeleteClient(ClientsList, client, currentUser);
                 },
                 obj => ClientsList.Count > 0 && SelectedClient != null));
             }
@@ -344,6 +342,7 @@ namespace Home_Work_13.ViewModels.VM
                             if (dialogAuthorizationService.OpenAuthorizationDialog() == true)
                             {
                                 currentUser = dialogAuthorizationService.SelectedUser;
+                                TxtCurrentUser = currentUser.Name;
                             }
                         }
                         catch

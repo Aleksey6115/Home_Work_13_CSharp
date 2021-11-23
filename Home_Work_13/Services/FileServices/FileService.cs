@@ -7,13 +7,14 @@ using Home_Work_13.Models;
 using Newtonsoft.Json;
 using Home_Work_13.Models.Client;
 using Home_Work_13.Models.Data;
+using Home_Work_13.Services.FileServices;
 
 namespace Home_Work_13.Services
 {
     /// <summary>
     /// Работа с файлом БД
     /// </summary>
-    class FileService
+    internal class FileService : IFile
     {
         /// <summary>
         /// Настройки для сериализации и десериализации
